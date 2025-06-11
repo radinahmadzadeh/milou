@@ -1,5 +1,10 @@
+package aut.ap;
+
 import jakarta.persistence.*;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 @Entity
 @Table(name = "users")
@@ -22,22 +27,20 @@ public class User {
     @Column(name = "Password")
     private String password;
 
+    @OneToMany(mappedBy = "receiver")
     private List<Email> inbox = new ArrayList<>();
 
+    @OneToMany(mappedBy = "sender")
     private List<Email> sent = new ArrayList<>();
 
+    @ElementCollection
     private Set<String> readCodes = new HashSet<>();
 
     public User() {}
 
-
     public User(String name, String email, String password) {
         this.name = name;
-        if (email.endsWith("@milou.com")) {
-            this.email = email;
-        } else {
-            this.email = email + "@milou.com";
-        }
+        this.email = email.endsWith("@milou.com") ? email : email + "@milou.com";
         this.password = password;
     }
 

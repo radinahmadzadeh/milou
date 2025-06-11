@@ -1,3 +1,5 @@
+package aut.ap;
+
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -46,7 +48,7 @@ public class Email {
         this.time = LocalDateTime.now();
     }
 
-    public int getId() {
+    public Integer getId() {
         return id;
     }
 

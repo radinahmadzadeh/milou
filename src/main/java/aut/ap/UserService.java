@@ -1,3 +1,5 @@
+package aut.ap;
+
 import aut.ap.framework.SingletonSessionFactory;
 import java.util.List;
 
