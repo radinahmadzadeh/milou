@@ -1,11 +1,12 @@
 package aut.ap;
 
 import aut.ap.framework.SingletonSessionFactory;
+
 import java.util.List;
 
 public class UserService {
 
-    public static User register(String name, String email, String password) {
+    public static User register(String name, String email,String password) {
         User user = new User(name, email, password);
         SingletonSessionFactory.inTransaction(session -> session.persist(user));
         return user;

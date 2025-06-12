@@ -1,55 +1,53 @@
 package aut.ap.framework;
 
-import org.hibernate.Session;
-import org.hibernate.SessionFactory;
-import org.hibernate.Transaction;
-import org.hibernate.cfg.Configuration;
-import java.util.function.Function;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
+import jakarta.persistence.Persistence;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 public class SingletonSessionFactory {
-    private static SessionFactory sessionFactory = null;
+    private static EntityManagerFactory emf;
 
-    public static SessionFactory get() {
-        if (sessionFactory == null) {
-            sessionFactory = new Configuration()
-                    .configure("hibernate.cfg.xml")
-                    .buildSessionFactory();
+    public static EntityManagerFactory get() {
+        if (emf == null) {
+            emf = Persistence.createEntityManagerFactory("default");
         }
-        return sessionFactory;
+        return emf;
     }
 
-    public static void inTransaction(Consumer<Session> action) {
-        try (Session session = get().openSession()) {
-            Transaction tx = session.beginTransaction();
-            try {
-                action.accept(session);
-                tx.commit();
-            } catch (Exception ex) {
-                if (tx != null) tx.rollback();
-                throw ex;
-            }
-        }
-    }
-
-    public static <T> T fromTransaction(Function<Session, T> action) {
-        try (Session session = get().openSession()) {
-            Transaction tx = session.beginTransaction();
-            try {
-                T result = action.apply(session);
-                tx.commit();
-                return result;
-            } catch (Exception ex) {
-                if (tx != null) tx.rollback();
-                throw ex;
-            }
+    public static void inTransaction(Consumer<EntityManager> action) {
+        EntityManager em = get().createEntityManager();
+        try {
+            em.getTransaction().begin();
+            action.accept(em);
+            em.getTransaction().commit();
+        } catch (Exception e) {
+            if (em.getTransaction().isActive()) em.getTransaction().rollback();
+            throw e;
+        } finally {
+            em.close();
         }
     }
 
-    public static void close() {
-        if (sessionFactory != null) {
-            sessionFactory.close();
-            sessionFactory = null;
+    public static <T> T fromTransaction(Function<EntityManager, T> action) {
+        EntityManager em = get().createEntityManager();
+        try {
+            em.getTransaction().begin();
+            T result = action.apply(em);
+            em.getTransaction().commit();
+            return result;
+        } catch (Exception e) {
+            if (em.getTransaction().isActive()) em.getTransaction().rollback();
+            throw e;
+        } finally {
+            em.close();
+        }
+    }
+
+    public static void shutdown() {
+        if (emf != null && emf.isOpen()) {
+            emf.close();
         }
     }
 }

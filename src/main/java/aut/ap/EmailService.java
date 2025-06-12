@@ -155,7 +155,7 @@ public class EmailService {
         if (original == null) return null;
 
         String newSubject = prefixSubject(original.getSubject(), "Re");
-        return sendEmail(user, Collections.singletonList(original.getSender().getEmail()), newSubject, body);
+        return sendEmail(user, Collections.singletonList(String.valueOf(original.getSender().getEmail())), newSubject, body);
     }
 
     public String forward(User user, String code, List<String> newRecipients) {
@@ -164,6 +164,14 @@ public class EmailService {
 
         String newSubject = prefixSubject(original.getSubject(), "Fw");
         return sendEmail(user, newRecipients, newSubject, original.getBody());
+    }
+
+    public String replyEmail(User user, String code, String body) {
+        return reply(user, code, body);
+    }
+
+    public String forwardEmail(User user, String code, List<String> newRecipients) {
+        return forward(user, code, newRecipients);
     }
 
     private String normalizeEmail(String email) {
