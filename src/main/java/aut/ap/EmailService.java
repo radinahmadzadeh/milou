@@ -59,6 +59,11 @@ public class EmailService {
     }
 
     public String sendEmail(User sender, List<String> recipientEmails, String subject, String body) {
+        return sendEmail(sender, recipientEmails, subject, body, null, null);
+    }
+
+    public String sendEmail(User sender, List<String> recipientEmails, String subject, String body,
+                            Email parentEmail, String type) {
         if (sender == null || recipientEmails == null || recipientEmails.isEmpty()) {
             throw new IllegalArgumentException("Sender and recipients must be provided");
         }
@@ -80,7 +85,7 @@ public class EmailService {
 
                 if (!users.isEmpty()) {
                     User receiver = users.get(0);
-                    Email email = new Email(sender, receiver, subject, body);
+                    Email email = new Email(sender, receiver, subject, body, parentEmail, type, em);
                     em.persist(email);
                 }
             }
@@ -155,7 +160,9 @@ public class EmailService {
         if (original == null) return null;
 
         String newSubject = prefixSubject(original.getSubject(), "Re");
-        return sendEmail(user, Collections.singletonList(String.valueOf(original.getSender().getEmail())), newSubject, body);
+        return sendEmail(user,
+                Collections.singletonList(original.getSender().getEmail()),
+                newSubject, body, original, "reply");
     }
 
     public String forward(User user, String code, List<String> newRecipients) {
@@ -163,7 +170,7 @@ public class EmailService {
         if (original == null) return null;
 
         String newSubject = prefixSubject(original.getSubject(), "Fw");
-        return sendEmail(user, newRecipients, newSubject, original.getBody());
+        return sendEmail(user, newRecipients, newSubject, original.getBody(), original, "forward");
     }
 
     public String replyEmail(User user, String code, String body) {

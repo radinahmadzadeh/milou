@@ -2,7 +2,7 @@ package aut.ap;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
-import java.util.UUID;
+import java.util.Random;
 
 @Entity
 @Table(name = "emails")
@@ -29,23 +29,35 @@ public class Email {
     @Column(name = "Body", columnDefinition = "TEXT")
     private String body;
 
-    @Basic(optional = false)
-    @Column(name = "Code", unique = true)
+    @Column(name = "Code")
     private String code;
 
     @Basic(optional = false)
     @Column(name = "Time")
     private LocalDateTime time;
 
+    @ManyToOne
+    @JoinColumn(name = "Parent_email_id")
+    private Email parentEmail;
+
+    @Column(name = "Type")
+    private String type;
+
     public Email() {}
 
-    public Email(User sender, User receiver, String subject, String body) {
+    public Email(User sender, User receiver, String subject, String body, Email parentEmail, String type, EntityManager em) {
         this.sender = sender;
         this.receiver = receiver;
         this.subject = subject;
         this.body = body;
-        this.code = UUID.randomUUID().toString();
+        this.code = generateUnique6DigitCode(em);
         this.time = LocalDateTime.now();
+        this.parentEmail = parentEmail;
+        this.type = type;
+    }
+
+    public Email(User sender, User receiver, String subject, String body, EntityManager em) {
+        this(sender, receiver, subject, body, null, "original", em);
     }
 
     public Integer getId() {
@@ -74,5 +86,29 @@ public class Email {
 
     public LocalDateTime getTime() {
         return time;
+    }
+
+    public Email getParentEmail() {
+        return parentEmail;
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    private String generateUnique6DigitCode(EntityManager em) {
+        Random random = new Random();
+        String code;
+        boolean unique;
+        do {
+            int number = 100000 + random.nextInt(900000);
+            code = String.valueOf(number);
+
+            TypedQuery<Long> query = em.createQuery("SELECT COUNT(e) FROM Email e WHERE e.code = :code", Long.class);
+            query.setParameter("code", code);
+            Long count = query.getSingleResult();
+            unique = (count == 0);
+        } while (!unique);
+        return code;
     }
 }

@@ -16,14 +16,12 @@ public class Main {
         while (true) {
             System.out.println("\n=== Email System ===");
             if (currentUser == null) {
-                System.out.println("1. Sign up");
-                System.out.println("2. Login");
-                System.out.println("0. Exit");
-                System.out.print("Choose an option: ");
-                String choice = scanner.nextLine();
+                System.out.print("[L]ogin, [S]ign up, [0] Exit: ");
+                String choice = scanner.nextLine().trim().toLowerCase();
 
                 switch (choice) {
-                    case "1":
+                    case "s":
+                    case "sign up":
                         System.out.print("Enter your name: ");
                         String name = scanner.nextLine();
                         System.out.print("Enter your email (without @milou.com): ");
@@ -38,7 +36,8 @@ public class Main {
                         }
                         break;
 
-                    case "2":
+                    case "l":
+                    case "login":
                         System.out.print("Enter your email (without @milou.com): ");
                         email = scanner.nextLine();
                         System.out.print("Enter your password: ");
@@ -46,7 +45,7 @@ public class Main {
 
                         currentUser = service.login(email, password);
                         if (currentUser != null) {
-                            System.out.println("✅ Login successful. Welcome, " + currentUser.getName() + "!");
+                            System.out.println("Welcome back, " + currentUser.getName() + "!");
                         } else {
                             System.out.println("❌ Invalid email or password.");
                         }
@@ -58,7 +57,7 @@ public class Main {
                         return;
 
                     default:
-                        System.out.println("Invalid choice.");
+                        System.out.println("Invalid input. Please enter [L], [S], or [0].");
                 }
             } else {
                 System.out.println("1. Inbox");
