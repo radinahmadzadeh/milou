@@ -43,6 +43,10 @@ public class Email {
     @Column(name = "Type")
     private String type;
 
+    @Basic(optional = false)
+    @Column(name = "is_read")
+    private boolean read;
+
     public Email() {}
 
     public Email(User sender, User receiver, String subject, String body, Email parentEmail, String type, EntityManager em) {
@@ -54,6 +58,7 @@ public class Email {
         this.time = LocalDateTime.now();
         this.parentEmail = parentEmail;
         this.type = type;
+        this.read = false;
     }
 
     public Email(User sender, User receiver, String subject, String body, EntityManager em) {
@@ -96,6 +101,14 @@ public class Email {
         return type;
     }
 
+    public boolean isRead() {
+        return read;
+    }
+
+    public void setRead(boolean read) {
+        this.read = read;
+    }
+
     private String generateUnique6DigitCode(EntityManager em) {
         Random random = new Random();
         String code;
@@ -103,7 +116,6 @@ public class Email {
         do {
             int number = 100000 + random.nextInt(900000);
             code = String.valueOf(number);
-
             TypedQuery<Long> query = em.createQuery("SELECT COUNT(e) FROM Email e WHERE e.code = :code", Long.class);
             query.setParameter("code", code);
             Long count = query.getSingleResult();
