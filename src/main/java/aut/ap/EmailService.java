@@ -1,6 +1,8 @@
 package aut.ap;
 
-import jakarta.persistence.*;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
+import jakarta.persistence.TypedQuery;
 import java.util.*;
 
 public class EmailService {
@@ -15,8 +17,7 @@ public class EmailService {
         EntityManager em = emf.createEntityManager();
         try {
             em.getTransaction().begin();
-            TypedQuery<User> query = em.createQuery(
-                    "SELECT u FROM User u WHERE u.email = :email", User.class);
+            TypedQuery<User> query = em.createQuery("SELECT u FROM User u WHERE u.email = :email", User.class);
             query.setParameter("email", email);
             boolean emailExists = !query.getResultList().isEmpty();
             if (emailExists || password.length() < 8) {
@@ -39,8 +40,7 @@ public class EmailService {
         email = normalizeEmail(email);
         EntityManager em = emf.createEntityManager();
         try {
-            TypedQuery<User> query = em.createQuery(
-                    "SELECT u FROM User u WHERE u.email = :email", User.class);
+            TypedQuery<User> query = em.createQuery("SELECT u FROM User u WHERE u.email = :email", User.class);
             query.setParameter("email", email);
             List<User> users = query.getResultList();
             if (users.isEmpty()) return null;
@@ -55,32 +55,33 @@ public class EmailService {
         if (sender == null || recipientEmails == null || recipientEmails.isEmpty()) {
             throw new IllegalArgumentException("Sender and recipients must be provided");
         }
+
         List<String> normalizedRecipients = new ArrayList<>();
         for (String email : recipientEmails) {
-            normalizedRecipients.add(normalizeEmail(email));
+            normalizedRecipients.add(normalizeEmail(email.trim()));
         }
+
         EntityManager em = emf.createEntityManager();
         try {
             em.getTransaction().begin();
-            List<Email> sentEmails = new ArrayList<>();
+
+            Email email = new Email(sender, subject, body, null, "original", em);
+            em.persist(email);
+
             for (String recipientEmail : normalizedRecipients) {
-                TypedQuery<User> query = em.createQuery(
-                        "SELECT u FROM User u WHERE u.email = :email", User.class);
+                TypedQuery<User> query = em.createQuery("SELECT u FROM User u WHERE u.email = :email", User.class);
                 query.setParameter("email", recipientEmail);
                 List<User> users = query.getResultList();
                 if (!users.isEmpty()) {
                     User receiver = users.get(0);
-                    Email email = new Email(sender, receiver, subject, body, em);
-                    em.persist(email);
-                    sentEmails.add(email);
+                    EmailRecipient recipient = new EmailRecipient(email, receiver);
+                    em.persist(recipient);
                 }
             }
+
             em.getTransaction().commit();
-            if (sentEmails.isEmpty()) {
-                return "No valid recipients found.";
-            }
-            String code = sentEmails.get(0).getCode();
-            return "Successfully sent your email.\nCode: " + code;
+            return "Successfully sent your email.\nCode: " + email.getCode();
+
         } catch (Exception ex) {
             if (em.getTransaction().isActive()) em.getTransaction().rollback();
             throw ex;
@@ -93,11 +94,11 @@ public class EmailService {
         if (user == null) return Collections.emptyList();
         EntityManager em = emf.createEntityManager();
         try {
-            String jpql = "SELECT e FROM Email e WHERE e.receiver = :user";
+            String jpql = "SELECT er.email FROM EmailRecipient er WHERE er.user = :user";
             if (unreadOnly) {
-                jpql += " AND e.read = false";
+                jpql += " AND er.isRead = false";
             }
-            jpql += " ORDER BY e.time DESC";
+            jpql += " ORDER BY er.email.time DESC";
             TypedQuery<Email> query = em.createQuery(jpql, Email.class);
             query.setParameter("user", user);
             return query.getResultList();
@@ -110,8 +111,7 @@ public class EmailService {
         if (user == null) return Collections.emptyList();
         EntityManager em = emf.createEntityManager();
         try {
-            TypedQuery<Email> query = em.createQuery(
-                    "SELECT e FROM Email e WHERE e.sender = :user ORDER BY e.time DESC", Email.class);
+            TypedQuery<Email> query = em.createQuery("SELECT e FROM Email e WHERE e.sender = :user ORDER BY e.time DESC", Email.class);
             query.setParameter("user", user);
             return query.getResultList();
         } finally {
@@ -123,16 +123,17 @@ public class EmailService {
         if (user == null || code == null) return null;
         EntityManager em = emf.createEntityManager();
         try {
-            TypedQuery<Email> query = em.createQuery(
-                    "SELECT e FROM Email e WHERE e.code = :code", Email.class);
+            TypedQuery<Email> query = em.createQuery("SELECT e FROM Email e WHERE e.code = :code", Email.class);
             query.setParameter("code", code);
             List<Email> results = query.getResultList();
             if (results.isEmpty()) return null;
             Email email = results.get(0);
-            if (email.getSender().equals(user) || email.getReceiver().equals(user)) {
-                return email;
-            }
-            return null;
+            TypedQuery<Long> countQuery = em.createQuery("SELECT COUNT(er) FROM EmailRecipient er WHERE er.email = :email AND er.user = :user", Long.class);
+            countQuery.setParameter("email", email);
+            countQuery.setParameter("user", user);
+            boolean isRecipient = countQuery.getSingleResult() > 0;
+            boolean isSender = email.getSender().equals(user);
+            return isSender || isRecipient ? email : null;
         } finally {
             em.close();
         }
@@ -145,12 +146,10 @@ public class EmailService {
         recipients.add(original.getSender().getEmail());
         EntityManager em = emf.createEntityManager();
         try {
-            TypedQuery<Email> query = em.createQuery(
-                    "SELECT e FROM Email e WHERE e.subject = :subject AND e.time = :time", Email.class);
-            query.setParameter("subject", original.getSubject());
-            query.setParameter("time", original.getTime());
-            for (Email e : query.getResultList()) {
-                recipients.add(e.getReceiver().getEmail());
+            TypedQuery<EmailRecipient> query = em.createQuery("SELECT er FROM EmailRecipient er WHERE er.email = :email", EmailRecipient.class);
+            query.setParameter("email", original);
+            for (EmailRecipient er : query.getResultList()) {
+                recipients.add(er.getUser().getEmail());
             }
         } finally {
             em.close();
@@ -201,25 +200,20 @@ public class EmailService {
         EntityManager em = emf.createEntityManager();
         try {
             em.getTransaction().begin();
-            List<Email> sentEmails = new ArrayList<>();
+            Email email = new Email(sender, subject, body, parentEmail, type, em);
+            em.persist(email);
             for (String recipientEmail : normalizedRecipients) {
-                TypedQuery<User> query = em.createQuery(
-                        "SELECT u FROM User u WHERE u.email = :email", User.class);
+                TypedQuery<User> query = em.createQuery("SELECT u FROM User u WHERE u.email = :email", User.class);
                 query.setParameter("email", recipientEmail);
                 List<User> users = query.getResultList();
                 if (!users.isEmpty()) {
                     User receiver = users.get(0);
-                    Email email = new Email(sender, receiver, subject, body, parentEmail, type, em);
-                    em.persist(email);
-                    sentEmails.add(email);
+                    EmailRecipient recipient = new EmailRecipient(email, receiver);
+                    em.persist(recipient);
                 }
             }
             em.getTransaction().commit();
-            if (sentEmails.isEmpty()) {
-                return "No valid recipients found.";
-            }
-            String code = sentEmails.get(0).getCode();
-            return "Successfully sent your email.\nCode: " + code;
+            return "Successfully sent your email.\nCode: " + email.getCode();
         } catch (Exception ex) {
             if (em.getTransaction().isActive()) em.getTransaction().rollback();
             throw ex;

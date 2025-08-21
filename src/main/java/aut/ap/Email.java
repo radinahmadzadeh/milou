@@ -17,10 +17,6 @@ public class Email {
     @JoinColumn(name = "Sender_id", nullable = false)
     private User sender;
 
-    @ManyToOne
-    @JoinColumn(name = "Receiver_id", nullable = false)
-    private User receiver;
-
     @Basic(optional = false)
     @Column(name = "Subject")
     private String subject;
@@ -43,71 +39,26 @@ public class Email {
     @Column(name = "Type")
     private String type;
 
-    @Basic(optional = false)
-    @Column(name = "is_read")
-    private boolean read;
-
     public Email() {}
 
-    public Email(User sender, User receiver, String subject, String body, Email parentEmail, String type, EntityManager em) {
+    public Email(User sender, String subject, String body, Email parentEmail, String type, EntityManager em) {
         this.sender = sender;
-        this.receiver = receiver;
         this.subject = subject;
         this.body = body;
         this.code = generateUnique6DigitCode(em);
         this.time = LocalDateTime.now();
         this.parentEmail = parentEmail;
         this.type = type;
-        this.read = false;
     }
 
-    public Email(User sender, User receiver, String subject, String body, EntityManager em) {
-        this(sender, receiver, subject, body, null, "original", em);
-    }
-
-    public Integer getId() {
-        return id;
-    }
-
-    public User getSender() {
-        return sender;
-    }
-
-    public User getReceiver() {
-        return receiver;
-    }
-
-    public String getSubject() {
-        return subject;
-    }
-
-    public String getBody() {
-        return body;
-    }
-
-    public String getCode() {
-        return code;
-    }
-
-    public LocalDateTime getTime() {
-        return time;
-    }
-
-    public Email getParentEmail() {
-        return parentEmail;
-    }
-
-    public String getType() {
-        return type;
-    }
-
-    public boolean isRead() {
-        return read;
-    }
-
-    public void setRead(boolean read) {
-        this.read = read;
-    }
+    public Integer getId() { return id; }
+    public User getSender() { return sender; }
+    public String getSubject() { return subject; }
+    public String getBody() { return body; }
+    public String getCode() { return code; }
+    public LocalDateTime getTime() { return time; }
+    public Email getParentEmail() { return parentEmail; }
+    public String getType() { return type; }
 
     private String generateUnique6DigitCode(EntityManager em) {
         Random random = new Random();

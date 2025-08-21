@@ -24,7 +24,7 @@
         <!-- Mappings -->
         <mapping class="aut.ap.User"/>
         <mapping class="aut.ap.Email"/>
-
+        <mapping class="aut.ap.EmailRecipient"/>
     </session-factory>
 
 </hibernate-configuration>

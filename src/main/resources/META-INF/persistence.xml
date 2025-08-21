@@ -8,6 +8,7 @@
     <persistence-unit name="default" transaction-type="RESOURCE_LOCAL">
         <class>aut.ap.User</class>
         <class>aut.ap.Email</class>
+        <class>aut.ap.EmailRecipient</class>
 
         <properties>
             <property name="jakarta.persistence.jdbc.driver" value="com.mysql.cj.jdbc.Driver"/>

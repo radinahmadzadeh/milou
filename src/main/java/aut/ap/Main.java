@@ -114,12 +114,22 @@ public class Main {
                                 if (visited[i]) continue;
                                 Email e = sent.get(i);
                                 List<String> recipients = new ArrayList<>();
-                                recipients.add(e.getReceiver().getEmail());
+                                TypedQuery<EmailRecipient> query = emf.createEntityManager().createQuery(
+                                        "SELECT er FROM EmailRecipient er WHERE er.email = :email", EmailRecipient.class);
+                                query.setParameter("email", e);
+                                for (EmailRecipient er : query.getResultList()) {
+                                    recipients.add(er.getUser().getEmail());
+                                }
                                 visited[i] = true;
                                 for (int j = i + 1; j < sent.size(); j++) {
                                     Email ej = sent.get(j);
                                     if (ej.getSubject() != null && ej.getSubject().equals(e.getSubject()) && ej.getTime() != null && ej.getTime().equals(e.getTime())) {
-                                        recipients.add(ej.getReceiver().getEmail());
+                                        TypedQuery<EmailRecipient> query2 = emf.createEntityManager().createQuery(
+                                                "SELECT er FROM EmailRecipient er WHERE er.email = :email", EmailRecipient.class);
+                                        query2.setParameter("email", ej);
+                                        for (EmailRecipient er : query2.getResultList()) {
+                                            recipients.add(er.getUser().getEmail());
+                                        }
                                         visited[j] = true;
                                     }
                                 }
@@ -139,14 +149,12 @@ public class Main {
                             } else {
                                 EntityManager em = emf.createEntityManager();
                                 try {
-                                    TypedQuery<Email> query = em.createQuery("SELECT e FROM Email e WHERE e.sender = :sender AND e.subject = :subject AND e.time = :time", Email.class);
-                                    query.setParameter("sender", emailObj.getSender());
-                                    query.setParameter("subject", emailObj.getSubject());
-                                    query.setParameter("time", emailObj.getTime());
-                                    List<Email> related = query.getResultList();
+                                    TypedQuery<EmailRecipient> query = em.createQuery(
+                                            "SELECT er FROM EmailRecipient er WHERE er.email = :email", EmailRecipient.class);
+                                    query.setParameter("email", emailObj);
                                     Set<String> recSet = new HashSet<>();
-                                    for (Email r : related) {
-                                        recSet.add(r.getReceiver().getEmail());
+                                    for (EmailRecipient er : query.getResultList()) {
+                                        recSet.add(er.getUser().getEmail());
                                     }
                                     String recipients = String.join(", ", recSet);
                                     DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd");
@@ -156,13 +164,19 @@ public class Main {
                                     System.out.println("Date: " + emailObj.getTime().format(fmt));
                                     System.out.println();
                                     System.out.println(emailObj.getBody());
-                                    em.getTransaction().begin();
-                                    Email managed = em.find(Email.class, emailObj.getId());
-                                    if (managed != null) {
-                                        managed.setRead(true);
-                                        em.merge(managed);
+
+                                    TypedQuery<EmailRecipient> updateQuery = em.createQuery(
+                                            "SELECT er FROM EmailRecipient er WHERE er.email.id = :emailId AND er.user.id = :userId", EmailRecipient.class);
+                                    updateQuery.setParameter("emailId", emailObj.getId());
+                                    updateQuery.setParameter("userId", currentUser.getId());
+                                    List<EmailRecipient> results = updateQuery.getResultList();
+                                    if (!results.isEmpty()) {
+                                        em.getTransaction().begin();
+                                        EmailRecipient er = results.get(0);
+                                        er.setRead(true);
+                                        em.merge(er);
+                                        em.getTransaction().commit();
                                     }
-                                    em.getTransaction().commit();
                                 } finally {
                                     em.close();
                                 }

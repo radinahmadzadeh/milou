@@ -1,4 +1,3 @@
-
 package aut.ap;
 
 import jakarta.persistence.*;
@@ -28,8 +27,8 @@ public class User {
     @Column(name = "Password")
     private String password;
 
-    @OneToMany(mappedBy = "receiver")
-    private List<Email> inbox = new ArrayList<>();
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
+    private List<EmailRecipient> receivedEmails = new ArrayList<>();
 
     @OneToMany(mappedBy = "sender")
     private List<Email> sent = new ArrayList<>();
@@ -45,7 +44,7 @@ public class User {
         this.password = password;
     }
 
-    public int getId() {
+    public Integer getId() {
         return id;
     }
 
@@ -62,7 +61,8 @@ public class User {
     }
 
     public void receiveEmail(Email email) {
-        inbox.add(email);
+        EmailRecipient recipient = new EmailRecipient(email, this);
+        receivedEmails.add(recipient);
     }
 
     public void sendEmail(Email email) {
@@ -70,6 +70,10 @@ public class User {
     }
 
     public List<Email> getInbox() {
+        List<Email> inbox = new ArrayList<>();
+        for (EmailRecipient er : receivedEmails) {
+            inbox.add(er.getEmail());
+        }
         return inbox;
     }
 
